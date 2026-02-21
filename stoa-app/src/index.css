@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #3e2723;
+    --color-cream:   #FAF5EB;
+    --color-accent:  #C2A06E;
+  }
+  html {
+    font-family: 'Epilogue', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    background-color: var(--color-cream);
+    overscroll-behavior: none;
+  }
+  body {
+    margin: 0;
+    overscroll-behavior: none;
+    overflow: hidden;
+    background-color: var(--color-cream);
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+}
+
+@layer components {
+  .screen {
+    @apply relative flex flex-col w-full;
+    height: 100dvh;
+    max-width: 430px;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: hidden;
+  }
+  .icon-fill { font-variation-settings: 'FILL' 1; }
+}
+
+@layer utilities {
+  .bg-cream     { background-color: var(--color-cream); }
+  .text-cream   { color: var(--color-cream); }
+  .bg-primary   { background-color: var(--color-primary); }
+  .text-primary { color: var(--color-primary); }
+  .bg-accent    { background-color: var(--color-accent); }
+  .text-accent  { color: var(--color-accent); }
+  .border-primary { border-color: var(--color-primary); }
+  .border-accent  { border-color: var(--color-accent); }
+  .shadow-soft { box-shadow: 0 4px 24px rgba(62,39,35,0.08); }
+  .pattern-bg {
+    background-image: radial-gradient(circle, rgba(62,39,35,0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
