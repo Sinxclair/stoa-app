@@ -33,16 +33,14 @@ export const EXCLUDED_NAMES = [
   "smoothie", "jamba", "juice press", "juice bar", "juicery",
   "robeks", "nekter", "pressed juicery",
   "7-eleven", "wawa", "sheetz", "circle k", "gas station",
-  "deli", "bodega", "grocery", "supermarket", "market", "pharmacy", "cvs", "walgreens",
+  "deli", "bodega", "grocery", "supermarket", "pharmacy", "cvs", "walgreens",
   "kung fu tea", "gong cha", "tiger sugar", "coco tea", "happy lemon",
-  "kung-fu tea", "boba guys", "vivi bubble tea", "tea and milk",
-  "tbaar", "bubble tea", "boba", "tea house", "tea room",
+  "boba guys", "vivi bubble tea", "bubble tea", "boba", "tea house",
   "baskin", "carvel", "cold stone", "dairy queen", "rita's ice",
   "ice cream", "frozen yogurt", "froyo",
-  "joe & the juice", "joes pizza", "joe's pizza",
   "ihop", "denny", "waffle house", "cracker barrel",
-  "tim hortons", "krispy kreme",
-  "pizz", "bagel", "donut", "doughnut", "bakery",
+  "tim hortons", "krispy kreme", "starbucks",
+  "paris baguette", "bagel", "donut", "doughnut", "bakery",
 ];
 
 export function isRealCoffeeShop(name) {
