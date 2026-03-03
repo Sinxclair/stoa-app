@@ -25,7 +25,7 @@ export default function CheckIn({ shop, isOpen, onClose, onSubmit }) {
 
   return (
     <div
-      className={`checkin-overlay ${isOpen ? "open" : ""}`}
+      className={"checkin-overlay " + (isOpen ? "open" : "")}
       onClick={handleOverlayClick}
     >
       <div className="checkin-modal">
@@ -37,7 +37,7 @@ export default function CheckIn({ shop, isOpen, onClose, onSubmit }) {
         {levels.map((level, i) => (
           <div
             key={i}
-            className={`level-option ${selected === i ? "selected" : ""}`}
+            className={"level-option " + (selected === i ? "selected" : "")}
             onClick={() => setSelected(i)}
           >
             <div>
