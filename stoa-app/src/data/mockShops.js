@@ -1,6 +1,3 @@
-// This file now serves as a utility for occupancy labels/colors
-// Real shop data comes from Google Places API in HomeMap.jsx
-
 export const occupancyLabels = {
   low: "Available",
   mid: "Moderate",
@@ -29,7 +26,28 @@ export const occupancyTextColors = {
   closed: "#757575",
 };
 
-// Assign occupancy — respects open/closed status
+export const EXCLUDED_NAMES = [
+  "mcdonald", "burger king", "wendy", "subway", "dunkin", "taco bell",
+  "chick-fil-a", "popeyes", "kfc", "five guys", "chipotle", "panera",
+  "shake shack", "wingstop", "domino", "pizza hut", "papa john",
+  "smoothie king", "jamba", "tropical smoothie", "juice press",
+  "robeks", "nekter", "pressed juicery",
+  "7-eleven", "wawa", "sheetz", "circle k", "gas station",
+  "deli", "bodega", "grocery", "market", "pharmacy", "cvs", "walgreens",
+  "kung fu tea", "gong cha", "tiger sugar", "coco tea", "happy lemon",
+  "kung-fu tea", "boba guys", "vivi bubble tea", "tea and milk",
+  "tbaar", "bubble tea", "boba",
+  "baskin", "carvel", "cold stone", "dairy queen", "rita's ice",
+  "joe & the juice", "joes pizza", "joe's pizza",
+  "ihop", "denny", "waffle house", "cracker barrel",
+  "tim hortons",
+];
+
+export function isRealCoffeeShop(name) {
+  const lower = name.toLowerCase();
+  return !EXCLUDED_NAMES.some((excluded) => lower.includes(excluded));
+}
+
 export function assignOccupancy(isOpen) {
   if (isOpen === false) {
     return { occupancy: "closed", occupancyPct: 0, updatedMinAgo: 0 };
