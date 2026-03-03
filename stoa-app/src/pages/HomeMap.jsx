@@ -1,12 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { occupancyLabels, occupancyColors } from "../data/mockShops";
+import { occupancyLabels, occupancyColors, assignOccupancy } from "../data/mockShops";
 import BottomSheet from "../components/BottomSheet";
 import ShopDetail from "./ShopDetail";
 import CheckIn from "./CheckIn";
 
 const GOOGLE_API_KEY = "AIzaSyDzcPX4NtY51Hl28Nly3NeqsxpTDiYoY48";
+
+// Fast food and chain names to filter out
+const EXCLUDED_NAMES = [
+  "mcdonald", "burger king", "wendy", "subway", "dunkin", "taco bell",
+  "chick-fil-a", "popeyes", "kfc", "five guys", "chipotle", "panera",
+  "shake shack", "wingstop", "domino", "pizza hut", "papa john",
+  "smoothie king", "jamba", "tropical smoothie", "juice press",
+  "robeks", "nekter", "pressed juicery", "joe & the juice",
+  "7-eleven", "wawa", "sheetz", "circle k", "gas station",
+  "deli", "bodega", "grocery", "market", "pharmacy", "cvs", "walgreens",
+];
+
+function isRealCoffeeShop(name) {
+  const lower = name.toLowerCase();
+  return !EXCLUDED_NAMES.some((excluded) => lower.includes(excluded));
+}
 
 const filters = [
   { key: "all", label: "All" },
@@ -14,14 +30,6 @@ const filters = [
   { key: "mid", label: "🟡 Moderate" },
   { key: "high", label: "🔴 Full" },
 ];
-
-// Assign random occupancy for MVP (will be replaced by real crowdsourced data)
-function assignOccupancy() {
-  const levels = ["low", "low", "low", "mid", "mid", "high"];
-  const level = levels[Math.floor(Math.random() * levels.length)];
-  const pcts = { low: Math.floor(Math.random() * 30 + 5), mid: Math.floor(Math.random() * 25 + 40), high: Math.floor(Math.random() * 20 + 75) };
-  return { occupancy: level, occupancyPct: pcts[level], updatedMinAgo: Math.floor(Math.random() * 15 + 1) };
-}
 
 export default function HomeMap() {
   const mapRef = useRef(null);
@@ -37,18 +45,23 @@ export default function HomeMap() {
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSearchArea, setShowSearchArea] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Fetch nearby coffee shops from Google Places
-  const fetchNearbyShops = async (lat, lng) => {
+  const fetchNearbyShops = useCallback(async (lat, lng, radius = 3000) => {
+    setLoading(true);
     try {
-      const url = `https://places.googleapis.com/v1/places:searchNearby`;
+      const url = "https://places.googleapis.com/v1/places:searchNearby";
       const body = {
-        includedTypes: ["cafe", "coffee_shop"],
+        includedTypes: ["coffee_shop", "cafe"],
+        excludedTypes: ["meal_delivery", "meal_takeaway", "fast_food_restaurant", "gas_station", "convenience_store", "grocery_or_supermarket", "pharmacy", "liquor_store"],
         maxResultCount: 20,
         locationRestriction: {
           circle: {
             center: { latitude: lat, longitude: lng },
-            radius: 2000.0,
+            radius: radius,
           },
         },
       };
@@ -58,7 +71,8 @@ export default function HomeMap() {
         headers: {
           "Content-Type": "application/json",
           "X-Goog-Api-Key": GOOGLE_API_KEY,
-          "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours",
+          "X-Goog-FieldMask":
+            "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews,places.primaryType",
         },
         body: JSON.stringify(body),
       });
@@ -66,37 +80,181 @@ export default function HomeMap() {
       const data = await response.json();
 
       if (data.places && data.places.length > 0) {
-        const shops = data.places.map((place, index) => {
-          const occ = assignOccupancy();
-          // Extract neighborhood from address
-          const addressParts = place.formattedAddress ? place.formattedAddress.split(",") : [];
-          const neighborhood = addressParts.length > 1 ? addressParts[1].trim() : "Brooklyn";
+        const shops = data.places
+          .filter((place) => {
+            const name = place.displayName?.text || "";
+            return isRealCoffeeShop(name);
+          })
+          .map((place, index) => {
+            const isOpen = place.currentOpeningHours?.openNow ?? null;
+            const occ = assignOccupancy(isOpen);
 
-          return {
-            id: index + 1,
-            placeId: place.id,
-            name: place.displayName?.text || "Coffee Shop",
-            address: place.formattedAddress || "",
-            neighborhood: neighborhood,
-            lat: place.location?.latitude,
-            lng: place.location?.longitude,
-            rating: place.rating || null,
-            isOpen: place.currentOpeningHours?.openNow ?? null,
-            photoRef: place.photos && place.photos.length > 0 ? place.photos[0].name : null,
-            ...occ,
-          };
+            const addressParts = place.formattedAddress
+              ? place.formattedAddress.split(",")
+              : [];
+            const neighborhood =
+              addressParts.length > 1 ? addressParts[1].trim() : "Brooklyn";
+
+            const hours =
+              place.regularOpeningHours?.weekdayDescriptions || [];
+
+            const reviews = (place.reviews || []).slice(0, 5).map((r) => ({
+              author: r.authorAttribution?.displayName || "Anonymous",
+              rating: r.rating || 0,
+              text: r.text?.text || "",
+              relativeTime: r.relativePublishTimeDescription || "",
+            }));
+
+            return {
+              id: index + 1,
+              placeId: place.id,
+              name: place.displayName?.text || "Coffee Shop",
+              address: place.formattedAddress || "",
+              neighborhood: neighborhood,
+              lat: place.location?.latitude,
+              lng: place.location?.longitude,
+              rating: place.rating || null,
+              isOpen: isOpen,
+              photoRef:
+                place.photos && place.photos.length > 0
+                  ? place.photos[0].name
+                  : null,
+              hours: hours,
+              reviews: reviews,
+              workspaceInfo: null,
+              ...occ,
+            };
+          });
+
+        // Sort: open first, then by occupancy
+        shops.sort((a, b) => {
+          if (a.occupancy === "closed" && b.occupancy !== "closed") return 1;
+          if (a.occupancy !== "closed" && b.occupancy === "closed") return -1;
+          const order = { low: 0, mid: 1, high: 2, closed: 3 };
+          return order[a.occupancy] - order[b.occupancy];
         });
 
         setAllShops(shops);
         setFilteredShops(shops);
+        setActiveFilter("all");
+      } else {
+        setAllShops([]);
+        setFilteredShops([]);
       }
       setLoading(false);
     } catch (error) {
       console.error("Error fetching places:", error);
       setLoading(false);
-      // Fall back to empty state
       setAllShops([]);
       setFilteredShops([]);
+    }
+  }, []);
+
+  // Text search for specific places or neighborhoods
+  const searchPlaces = async (query) => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setSearchOpen(false);
+
+    try {
+      const url = "https://places.googleapis.com/v1/places:searchText";
+      const body = {
+        textQuery: query + " coffee shop",
+        locationBias: {
+          circle: {
+            center: { latitude: 40.6782, longitude: -73.9442 },
+            radius: 15000.0,
+          },
+        },
+        maxResultCount: 20,
+      };
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": GOOGLE_API_KEY,
+          "X-Goog-FieldMask":
+            "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews,places.primaryType",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (data.places && data.places.length > 0) {
+        const shops = data.places
+          .filter((place) => {
+            const name = place.displayName?.text || "";
+            return isRealCoffeeShop(name);
+          })
+          .map((place, index) => {
+            const isOpen = place.currentOpeningHours?.openNow ?? null;
+            const occ = assignOccupancy(isOpen);
+
+            const addressParts = place.formattedAddress
+              ? place.formattedAddress.split(",")
+              : [];
+            const neighborhood =
+              addressParts.length > 1 ? addressParts[1].trim() : "";
+
+            const hours =
+              place.regularOpeningHours?.weekdayDescriptions || [];
+
+            const reviews = (place.reviews || []).slice(0, 5).map((r) => ({
+              author: r.authorAttribution?.displayName || "Anonymous",
+              rating: r.rating || 0,
+              text: r.text?.text || "",
+              relativeTime: r.relativePublishTimeDescription || "",
+            }));
+
+            return {
+              id: index + 1,
+              placeId: place.id,
+              name: place.displayName?.text || "Coffee Shop",
+              address: place.formattedAddress || "",
+              neighborhood: neighborhood,
+              lat: place.location?.latitude,
+              lng: place.location?.longitude,
+              rating: place.rating || null,
+              isOpen: isOpen,
+              photoRef:
+                place.photos && place.photos.length > 0
+                  ? place.photos[0].name
+                  : null,
+              hours: hours,
+              reviews: reviews,
+              workspaceInfo: null,
+              ...occ,
+            };
+          });
+
+        shops.sort((a, b) => {
+          if (a.occupancy === "closed" && b.occupancy !== "closed") return 1;
+          if (a.occupancy !== "closed" && b.occupancy === "closed") return -1;
+          const order = { low: 0, mid: 1, high: 2, closed: 3 };
+          return order[a.occupancy] - order[b.occupancy];
+        });
+
+        setAllShops(shops);
+        setFilteredShops(shops);
+        setActiveFilter("all");
+
+        // Fly to first result
+        if (shops.length > 0 && mapInstanceRef.current) {
+          const bounds = L.latLngBounds(
+            shops.map((s) => [s.lat, s.lng])
+          );
+          mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
+        }
+      } else {
+        setAllShops([]);
+        setFilteredShops([]);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error("Error searching places:", error);
+      setLoading(false);
     }
   };
 
@@ -105,7 +263,7 @@ export default function HomeMap() {
     if (mapInstanceRef.current) return;
 
     const map = L.map(mapRef.current, {
-      center: [40.6782, -73.9442], // Default Brooklyn
+      center: [40.6782, -73.9442],
       zoom: 14,
       zoomControl: false,
     });
@@ -120,16 +278,19 @@ export default function HomeMap() {
       }
     ).addTo(map);
 
+    // Show "Search this area" when user pans the map
+    map.on("moveend", () => {
+      setShowSearchArea(true);
+    });
+
     mapInstanceRef.current = map;
 
-    // Get user's real location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           map.flyTo([latitude, longitude], 15, { duration: 1 });
 
-          // Blue dot for user
           const userIcon = L.divIcon({
             className: "user-location-marker",
             html: '<div style="width:16px;height:16px;background:#2979FF;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(41,121,255,0.25),0 2px 8px rgba(0,0,0,0.2);"></div>',
@@ -143,12 +304,9 @@ export default function HomeMap() {
             zIndexOffset: 1000,
           }).addTo(map);
 
-          // Fetch real coffee shops near user
           fetchNearbyShops(latitude, longitude);
         },
-        (err) => {
-          console.log("Location denied, using default Brooklyn center");
-          // Fetch shops around default Brooklyn location
+        () => {
           fetchNearbyShops(40.6782, -73.9442);
         },
         { enableHighAccuracy: true, timeout: 10000 }
@@ -161,9 +319,18 @@ export default function HomeMap() {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [fetchNearbyShops]);
 
-  // Update markers when shops/filter changes
+  // Search this area
+  const handleSearchArea = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const center = map.getCenter();
+    fetchNearbyShops(center.lat, center.lng, 3000);
+    setShowSearchArea(false);
+  };
+
+  // Update markers
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -174,15 +341,22 @@ export default function HomeMap() {
     filteredShops.forEach((shop) => {
       if (!shop.lat || !shop.lng) return;
 
-      const cssClass =
-        shop.occupancy === "low" ? "low" : shop.occupancy === "mid" ? "mid" : "high";
+      const isClosed = shop.occupancy === "closed";
+      const cssClass = isClosed
+        ? "closed"
+        : shop.occupancy === "low"
+          ? "low"
+          : shop.occupancy === "mid"
+            ? "mid"
+            : "high";
 
-      // Shorten name for marker bubble
-      const shortName = shop.name.length > 12 ? shop.name.substring(0, 12) + "…" : shop.name;
+      const shortName =
+        shop.name.length > 12 ? shop.name.substring(0, 12) + "…" : shop.name;
 
       const icon = L.divIcon({
         className: "custom-marker",
-        html: '<div class="marker-bubble ' + cssClass + '">' + shortName + "</div>",
+        html:
+          '<div class="marker-bubble ' + cssClass + '">' + shortName + "</div>",
         iconSize: [0, 0],
         iconAnchor: [50, 30],
       });
@@ -240,10 +414,18 @@ export default function HomeMap() {
             zIndexOffset: 1000,
           }).addTo(map);
 
-          // Re-fetch shops for new location
           fetchNearbyShops(latitude, longitude);
+          setShowSearchArea(false);
         }
       });
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      searchPlaces(searchQuery.trim());
+      setSearchQuery("");
     }
   };
 
@@ -264,13 +446,47 @@ export default function HomeMap() {
             </button>
           </div>
         </div>
-        <div className="search-bar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          {loading ? "Finding coffee shops near you..." : `${allShops.length} coffee shops near you`}
-        </div>
+
+        {/* Working Search Bar */}
+        {searchOpen ? (
+          <div onSubmit={handleSearchSubmit} style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Try 'Williamsburg' or 'Blue Bottle'..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearchSubmit(e);
+                if (e.key === "Escape") setSearchOpen(false);
+              }}
+            />
+            <button
+              className="search-go-btn"
+              onClick={handleSearchSubmit}
+            >
+              Go
+            </button>
+            <button
+              className="search-cancel-btn"
+              onClick={() => setSearchOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <div className="search-bar" onClick={() => setSearchOpen(true)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            {loading
+              ? "Finding coffee shops near you..."
+              : `${allShops.length} coffee shops · Tap to search`}
+          </div>
+        )}
+
         <div className="filter-row">
           {filters.map((f) => (
             <div
@@ -286,6 +502,13 @@ export default function HomeMap() {
 
       {/* Map */}
       <div ref={mapRef} id="map" />
+
+      {/* Search This Area Button */}
+      {showSearchArea && !loading && (
+        <button className="search-area-btn" onClick={handleSearchArea}>
+          🔄 Search this area
+        </button>
+      )}
 
       {/* Bottom Sheet */}
       <BottomSheet shops={filteredShops} onShopClick={handleShopClick} />
