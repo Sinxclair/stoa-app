@@ -44,10 +44,7 @@ export default function CheckIn({ shop, isOpen, onClose, onSubmit }) {
               <div className="level-label">{level.label}</div>
               <div className="level-desc">{level.desc}</div>
             </div>
-            <div
-              className="level-dot"
-              style={{ background: level.color }}
-            />
+            <div className="level-dot" style={{ background: level.color }} />
           </div>
         ))}
 
