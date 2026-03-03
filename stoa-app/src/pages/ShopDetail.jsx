@@ -1,20 +1,35 @@
 import { occupancyLabels, occupancyColors } from "../data/mockShops";
 
+const GOOGLE_API_KEY = "AIzaSyDzcPX4NtY51Hl28Nly3NeqsxpTDiYoY48";
+
 export default function ShopDetail({ shop, isOpen, onClose, onCheckin }) {
   if (!shop) return null;
 
-  const statusColor = occupancyColors[shop.occupancy];
-  const statusLabel = occupancyLabels[shop.occupancy];
-  const currentHour = new Date().getHours();
+  const isClosed = shop.occupancy === "closed";
+  const statusColor = isClosed ? "#9E9E9E" : occupancyColors[shop.occupancy];
+  const statusLabel = isClosed ? "Closed" : occupancyLabels[shop.occupancy];
 
-  // Generate simulated busyness bars
-  const hours = Array.from({ length: 12 }, (_, i) => {
-    const h = 7 + i;
-    const height = Math.floor(Math.random() * 80 + 10);
-    const isCurrent = h === currentHour;
-    const isPast = h < currentHour;
-    return { h, height, isCurrent, isPast };
-  });
+  // Format hours for display
+  const formatHours = () => {
+    if (!shop.hours || shop.hours.length === 0) return null;
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const today = new Date().getDay();
+    return shop.hours.map((h, i) => ({
+      day: days[i],
+      hours: h,
+      isToday: i === today,
+    }));
+  };
+
+  const formattedHours = formatHours();
+
+  // Get photo URL from Google Places
+  const getPhotoUrl = () => {
+    if (!shop.photoRef) return null;
+    return `https://places.googleapis.com/v1/${shop.photoRef}/media?maxWidthPx=800&key=${GOOGLE_API_KEY}`;
+  };
+
+  const photoUrl = getPhotoUrl();
 
   const openDirections = () => {
     window.open(
@@ -25,20 +40,32 @@ export default function ShopDetail({ shop, isOpen, onClose, onCheckin }) {
 
   return (
     <div className={`detail-panel ${isOpen ? "open" : ""}`}>
+      {/* Hero Image */}
       <div className="detail-hero">
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            background: "#F0EDE6",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "48px",
-          }}
-        >
-          ☕
-        </div>
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={shop.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            onError={(e) => {
+              e.target.style.display = "none";
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: "#F0EDE6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "48px",
+            }}
+          >
+            ☕
+          </div>
+        )}
         <div className="detail-hero-gradient" />
         <button className="detail-back" onClick={onClose}>
           ←
@@ -46,50 +73,144 @@ export default function ShopDetail({ shop, isOpen, onClose, onCheckin }) {
       </div>
 
       <div className="detail-body">
+        {/* Name & Address */}
         <div className="detail-name">{shop.name}</div>
         <div className="detail-address">{shop.address}</div>
+
+        {/* Rating */}
+        {shop.rating && (
+          <div style={{ marginBottom: "16px", fontSize: "14px", color: "#5D4037" }}>
+            ⭐ {shop.rating} on Google
+          </div>
+        )}
 
         {/* Occupancy Section */}
         <div className="detail-occ-section">
           <div className="detail-occ-header">
-            <div className="detail-occ-label">Current Occupancy</div>
+            <div className="detail-occ-label">
+              {isClosed ? "Status" : "Current Occupancy"}
+            </div>
             <div className="detail-occ-status" style={{ color: statusColor }}>
               {statusLabel}
             </div>
           </div>
-          <div className="occ-bar-track">
-            <div
-              className="occ-bar-fill"
-              style={{
-                width: `${shop.occupancyPct}%`,
-                background: statusColor,
-              }}
-            />
-          </div>
-          <div className="detail-updated">
-            Last updated: {shop.updatedMinAgo} min ago
+          {!isClosed && (
+            <>
+              <div className="occ-bar-track">
+                <div
+                  className="occ-bar-fill"
+                  style={{
+                    width: `${shop.occupancyPct}%`,
+                    background: statusColor,
+                  }}
+                />
+              </div>
+              <div className="detail-updated">
+                Last updated: {shop.updatedMinAgo} min ago
+              </div>
+            </>
+          )}
+          {isClosed && (
+            <div className="detail-updated">
+              This shop is currently closed. Check back during business hours.
+            </div>
+          )}
+        </div>
+
+        {/* Hours of Operation */}
+        <div className="detail-section">
+          <div className="detail-section-title">Hours</div>
+          <div className="hours-card">
+            {formattedHours ? (
+              formattedHours.map((h, i) => (
+                <div
+                  key={i}
+                  className="hours-row"
+                  style={h.isToday ? { fontWeight: 700, color: "#3E2723" } : {}}
+                >
+                  <span className="hours-day">
+                    {h.isToday ? "▸ " : ""}{h.day}
+                  </span>
+                  <span className="hours-time">{h.hours}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ fontSize: "13px", color: "#999", padding: "8px 0" }}>
+                Hours not available — check Google Maps for details
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Busyness Chart */}
+        {/* Workspace Info */}
         <div className="detail-section">
-          <div className="detail-section-title">Typical Busyness</div>
-          <div className="busy-chart">
-            {hours.map((bar, i) => (
-              <div
-                key={i}
-                className={`busy-bar ${bar.isCurrent ? "now" : bar.isPast ? "past" : ""}`}
-                style={{ height: `${bar.height}%` }}
-              />
-            ))}
+          <div className="detail-section-title">Workspace Info</div>
+          <div className="workspace-card">
+            <div className="workspace-item">
+              <div className="workspace-icon">🔌</div>
+              <div className="workspace-info">
+                <div className="workspace-label">Outlets</div>
+                <div className="workspace-value">
+                  {shop.workspaceInfo?.outlets || "Not yet reported"}
+                </div>
+              </div>
+            </div>
+            <div className="workspace-item">
+              <div className="workspace-icon">💻</div>
+              <div className="workspace-info">
+                <div className="workspace-label">Laptop Friendly</div>
+                <div className="workspace-value">
+                  {shop.workspaceInfo?.laptopFriendly || "Not yet reported"}
+                </div>
+              </div>
+            </div>
+            <div className="workspace-item">
+              <div className="workspace-icon">📶</div>
+              <div className="workspace-info">
+                <div className="workspace-label">WiFi</div>
+                <div className="workspace-value">
+                  {shop.workspaceInfo?.wifi || "Not yet reported"}
+                </div>
+              </div>
+            </div>
+            <div className="workspace-item">
+              <div className="workspace-icon">🔇</div>
+              <div className="workspace-info">
+                <div className="workspace-label">Noise Level</div>
+                <div className="workspace-value">
+                  {shop.workspaceInfo?.noise || "Not yet reported"}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="busy-labels">
-            <span className="busy-label">7am</span>
-            <span className="busy-label">10am</span>
-            <span className="busy-label">1pm</span>
-            <span className="busy-label">4pm</span>
-            <span className="busy-label">7pm</span>
+          <div className="workspace-cta">
+            Been here? Help others by reporting workspace details!
           </div>
+        </div>
+
+        {/* Reviews */}
+        <div className="detail-section">
+          <div className="detail-section-title">Reviews</div>
+          {shop.reviews && shop.reviews.length > 0 ? (
+            <div className="reviews-list">
+              {shop.reviews.map((review, i) => (
+                <div key={i} className="review-card">
+                  <div className="review-header">
+                    <div className="review-author">{review.author}</div>
+                    <div className="review-rating">
+                      {"⭐".repeat(Math.round(review.rating))}
+                    </div>
+                  </div>
+                  <div className="review-time">{review.relativeTime}</div>
+                  <div className="review-text">{review.text}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: "13px", color: "#999", padding: "8px 0" }}>
+              No reviews available yet
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -97,9 +218,11 @@ export default function ShopDetail({ shop, isOpen, onClose, onCheckin }) {
           <button className="btn-primary" onClick={openDirections}>
             Get Directions
           </button>
-          <button className="btn-secondary" onClick={onCheckin}>
-            Check In
-          </button>
+          {!isClosed && (
+            <button className="btn-secondary" onClick={onCheckin}>
+              Check In
+            </button>
+          )}
         </div>
       </div>
     </div>
