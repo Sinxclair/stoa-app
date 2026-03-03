@@ -1,69 +1,57 @@
-export const occupancyLabels = {
-  low: "Available",
-  mid: "Moderate",
-  high: "Full",
-  closed: "Closed",
-};
+import { useState } from "react";
 
-export const occupancyColors = {
-  low: "#4CAF50",
-  mid: "#FF9800",
-  high: "#E57373",
-  closed: "#9E9E9E",
-};
-
-export const occupancyBgColors = {
-  low: "#E8F5E9",
-  mid: "#FFF3E0",
-  high: "#FFEBEE",
-  closed: "#F5F5F5",
-};
-
-export const occupancyTextColors = {
-  low: "#2E7D32",
-  mid: "#E65100",
-  high: "#B71C1C",
-  closed: "#757575",
-};
-
-export const EXCLUDED_NAMES = [
-  "mcdonald", "burger king", "wendy", "subway", "dunkin", "taco bell",
-  "chick-fil-a", "popeyes", "kfc", "five guys", "chipotle", "panera",
-  "shake shack", "wingstop", "domino", "pizza hut", "papa john",
-  "smoothie king", "jamba", "tropical smoothie", "juice press",
-  "robeks", "nekter", "pressed juicery",
-  "7-eleven", "wawa", "sheetz", "circle k", "gas station",
-  "deli", "bodega", "grocery", "market", "pharmacy", "cvs", "walgreens",
-  "kung fu tea", "gong cha", "tiger sugar", "coco tea", "happy lemon",
-  "kung-fu tea", "boba guys", "vivi bubble tea", "tea and milk",
-  "tbaar", "bubble tea", "boba",
-  "baskin", "carvel", "cold stone", "dairy queen", "rita's ice",
-  "joe & the juice", "joes pizza", "joe's pizza",
-  "ihop", "denny", "waffle house", "cracker barrel",
-  "tim hortons",
+const levels = [
+  { label: "Not busy", desc: "Plenty of seats available", color: "#4CAF50" },
+  { label: "Moderate", desc: "Some seats, getting full", color: "#FF9800" },
+  { label: "Very busy", desc: "Hard to find a seat", color: "#E57373" },
+  { label: "Packed", desc: "No seats available", color: "#B71C1C" },
 ];
 
-export function isRealCoffeeShop(name) {
-  const lower = name.toLowerCase();
-  return !EXCLUDED_NAMES.some((excluded) => lower.includes(excluded));
-}
+export default function CheckIn({ shop, isOpen, onClose, onSubmit }) {
+  const [selected, setSelected] = useState(null);
 
-export function assignOccupancy(isOpen) {
-  if (isOpen === false) {
-    return { occupancy: "closed", occupancyPct: 0, updatedMinAgo: 0 };
-  }
-  const levels = ["low", "low", "low", "mid", "mid", "high"];
-  const level = levels[Math.floor(Math.random() * levels.length)];
-  const pcts = {
-    low: Math.floor(Math.random() * 30 + 5),
-    mid: Math.floor(Math.random() * 25 + 40),
-    high: Math.floor(Math.random() * 20 + 75),
+  const handleSubmit = () => {
+    if (selected === null) return;
+    onSubmit(selected);
+    setSelected(null);
   };
-  return {
-    occupancy: level,
-    occupancyPct: pcts[level],
-    updatedMinAgo: Math.floor(Math.random() * 15 + 1),
-  };
-}
 
-export default [];
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+      setSelected(null);
+    }
+  };
+
+  return (
+    <div
+      className={"checkin-overlay " + (isOpen ? "open" : "")}
+      onClick={handleOverlayClick}
+    >
+      <div className="checkin-modal">
+        <div className="checkin-title">How busy is it?</div>
+        <div className="checkin-sub">
+          {shop ? shop.name : "Select a shop"} · Now
+        </div>
+
+        {levels.map((level, i) => (
+          <div
+            key={i}
+            className={"level-option " + (selected === i ? "selected" : "")}
+            onClick={() => setSelected(i)}
+          >
+            <div>
+              <div className="level-label">{level.label}</div>
+              <div className="level-desc">{level.desc}</div>
+            </div>
+            <div className="level-dot" style={{ background: level.color }} />
+          </div>
+        ))}
+
+        <button className="submit-report-btn" onClick={handleSubmit}>
+          Submit Report
+        </button>
+      </div>
+    </div>
+  );
+}
