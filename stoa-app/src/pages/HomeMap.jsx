@@ -155,7 +155,7 @@ export default function HomeMap() {
     setLoading(true);
     fetch("https://places.googleapis.com/v1/places:searchNearby", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews" },
-      body: JSON.stringify({ includedTypes: ["coffee_shop"], maxResultCount: 20, locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 3000.0 } } }),
+      body: JSON.stringify({ includedTypes: ["coffee_shop"], maxResultCount: 20, locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 5000.0 } } }),
     }).then(function(r){return r.json()}).then(function(data) {
       if (data.places && data.places.length > 0) {
         var shops = sortShops(data.places.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
