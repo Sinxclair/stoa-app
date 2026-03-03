@@ -20,17 +20,12 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
           <Route path="/"               element={<SplashScreen />} />
           <Route path="/auth"           element={<AuthScreen />} />
           <Route path="/create-account" element={<CreateAccount />} />
           <Route path="/login"          element={<LoginScreen />} />
-
-          {/* Core app */}
           <Route path="/home"           element={<HomeMap />} />
           <Route path="/rewards"        element={<RewardsScreen />} />
-
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
