@@ -344,27 +344,40 @@ body {
 .custom-marker { background: none; border: none; }
 .marker-bubble {
   font-family: 'DM Mono', monospace;
-  font-size: 11px; font-weight: 500;
-  padding: 5px 10px; border-radius: 20px;
-  color: white; white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  position: relative; cursor: pointer; transition: transform 0.2s;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: #3E2723;
+  white-space: nowrap;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s;
+  border-left: 4px solid #4CAF50;
 }
 .marker-bubble:hover { transform: scale(1.08); }
-.marker-bubble::after {
-  content: ''; position: absolute; bottom: -6px; left: 50%;
-  transform: translateX(-50%); width: 0; height: 0;
-  border-left: 5px solid transparent; border-right: 5px solid transparent;
+.marker-bubble::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: #4CAF50;
+  box-shadow: 0 0 6px rgba(76,175,80,0.5);
 }
-.marker-bubble.low { background: var(--green); }
-.marker-bubble.low::after { border-top: 6px solid var(--green); }
-.marker-bubble.mid { background: var(--orange); }
-.marker-bubble.mid::after { border-top: 6px solid var(--orange); }
-.marker-bubble.high { background: var(--red); }
-.marker-bubble.high::after { border-top: 6px solid var(--red); }
-.marker-bubble.closed { background: var(--gray); opacity: 0.7; }
-.marker-bubble.closed::after { border-top: 6px solid var(--gray); }
-
+.marker-bubble::after { display: none; }
+.marker-bubble.low { border-left-color: #4CAF50; }
+.marker-bubble.low::before { background: #4CAF50; box-shadow: 0 0 8px rgba(76,175,80,0.5); }
+.marker-bubble.mid { border-left-color: #FF9800; }
+.marker-bubble.mid::before { background: #FF9800; box-shadow: 0 0 8px rgba(255,152,0,0.5); }
+.marker-bubble.high { border-left-color: #E57373; }
+.marker-bubble.high::before { background: #E57373; box-shadow: 0 0 8px rgba(229,115,115,0.5); }
+.marker-bubble.closed { border-left-color: #9E9E9E; opacity: 0.6; }
+.marker-bubble.closed::before { background: #9E9E9E; box-shadow: none; }
 /* ===== CHECK-IN MODAL ===== */
 .checkin-overlay {
   position: fixed; inset: 0; z-index: 3000;
