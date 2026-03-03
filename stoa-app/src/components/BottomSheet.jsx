@@ -16,11 +16,7 @@ export default function BottomSheet({ shops, onShopClick }) {
         </div>
         <div
           className="occ-badge"
-          style={{
-            background: "#E8F5E9",
-            color: "#2E7D32",
-            fontSize: "9px",
-          }}
+          style={{ background: "#E8F5E9", color: "#2E7D32", fontSize: "9px" }}
         >
           LIVE
         </div>
