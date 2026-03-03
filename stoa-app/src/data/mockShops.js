@@ -1,148 +1,51 @@
-const mockShops = [
-  {
-    id: 1,
-    name: "Partners Coffee",
-    address: "125 Court St, Cobble Hill",
-    neighborhood: "Cobble Hill",
-    lat: 40.6874,
-    lng: -73.9935,
-    occupancy: "low",
-    occupancyPct: 25,
-    updatedMinAgo: 3,
-  },
-  {
-    id: 2,
-    name: "Devoción",
-    address: "69 Grand St, Williamsburg",
-    neighborhood: "Williamsburg",
-    lat: 40.7118,
-    lng: -73.9614,
-    occupancy: "mid",
-    occupancyPct: 55,
-    updatedMinAgo: 8,
-  },
-  {
-    id: 3,
-    name: "Sey Coffee",
-    address: "18 Grattan St, Bushwick",
-    neighborhood: "Bushwick",
-    lat: 40.7087,
-    lng: -73.9258,
-    occupancy: "low",
-    occupancyPct: 20,
-    updatedMinAgo: 2,
-  },
-  {
-    id: 4,
-    name: "Café Regular",
-    address: "318 3rd Ave, Park Slope",
-    neighborhood: "Park Slope",
-    lat: 40.6724,
-    lng: -73.9826,
-    occupancy: "high",
-    occupancyPct: 85,
-    updatedMinAgo: 1,
-  },
-  {
-    id: 5,
-    name: "Black Fox Coffee",
-    address: "282 Flatbush Ave, Prospect Heights",
-    neighborhood: "Prospect Heights",
-    lat: 40.6808,
-    lng: -73.9713,
-    occupancy: "low",
-    occupancyPct: 30,
-    updatedMinAgo: 12,
-  },
-  {
-    id: 6,
-    name: "Hungry Ghost",
-    address: "781 Fulton St, Clinton Hill",
-    neighborhood: "Clinton Hill",
-    lat: 40.6831,
-    lng: -73.9657,
-    occupancy: "mid",
-    occupancyPct: 60,
-    updatedMinAgo: 5,
-  },
-  {
-    id: 7,
-    name: "Café Grumpy",
-    address: "193 Meserole Ave, Greenpoint",
-    neighborhood: "Greenpoint",
-    lat: 40.7277,
-    lng: -73.9515,
-    occupancy: "low",
-    occupancyPct: 15,
-    updatedMinAgo: 7,
-  },
-  {
-    id: 8,
-    name: "Variety Coffee",
-    address: "368 Graham Ave, Williamsburg",
-    neighborhood: "Williamsburg",
-    lat: 40.7145,
-    lng: -73.9445,
-    occupancy: "high",
-    occupancyPct: 90,
-    updatedMinAgo: 2,
-  },
-  {
-    id: 9,
-    name: "Toby's Estate",
-    address: "125 N 6th St, Williamsburg",
-    neighborhood: "Williamsburg",
-    lat: 40.7175,
-    lng: -73.9594,
-    occupancy: "mid",
-    occupancyPct: 50,
-    updatedMinAgo: 15,
-  },
-  {
-    id: 10,
-    name: "AP Café",
-    address: "426 7th Ave, Park Slope",
-    neighborhood: "Park Slope",
-    lat: 40.6658,
-    lng: -73.981,
-    occupancy: "low",
-    occupancyPct: 20,
-    updatedMinAgo: 4,
-  },
-  {
-    id: 11,
-    name: "Sweatshop Coffee",
-    address: "232 Metropolitan Ave, Williamsburg",
-    neighborhood: "Williamsburg",
-    lat: 40.7136,
-    lng: -73.9558,
-    occupancy: "high",
-    occupancyPct: 80,
-    updatedMinAgo: 6,
-  },
-  {
-    id: 12,
-    name: "Propeller Coffee",
-    address: "984 Manhattan Ave, Greenpoint",
-    neighborhood: "Greenpoint",
-    lat: 40.7302,
-    lng: -73.9538,
-    occupancy: "low",
-    occupancyPct: 10,
-    updatedMinAgo: 1,
-  },
-];
+// This file now serves as a utility for occupancy labels/colors
+// Real shop data comes from Google Places API in HomeMap.jsx
 
 export const occupancyLabels = {
   low: "Available",
   mid: "Moderate",
   high: "Full",
+  closed: "Closed",
 };
 
 export const occupancyColors = {
   low: "#4CAF50",
   mid: "#FF9800",
   high: "#E57373",
+  closed: "#9E9E9E",
 };
 
-export default mockShops;
+export const occupancyBgColors = {
+  low: "#E8F5E9",
+  mid: "#FFF3E0",
+  high: "#FFEBEE",
+  closed: "#F5F5F5",
+};
+
+export const occupancyTextColors = {
+  low: "#2E7D32",
+  mid: "#E65100",
+  high: "#B71C1C",
+  closed: "#757575",
+};
+
+// Assign occupancy — respects open/closed status
+export function assignOccupancy(isOpen) {
+  if (isOpen === false) {
+    return { occupancy: "closed", occupancyPct: 0, updatedMinAgo: 0 };
+  }
+  const levels = ["low", "low", "low", "mid", "mid", "high"];
+  const level = levels[Math.floor(Math.random() * levels.length)];
+  const pcts = {
+    low: Math.floor(Math.random() * 30 + 5),
+    mid: Math.floor(Math.random() * 25 + 40),
+    high: Math.floor(Math.random() * 20 + 75),
+  };
+  return {
+    occupancy: level,
+    occupancyPct: pcts[level],
+    updatedMinAgo: Math.floor(Math.random() * 15 + 1),
+  };
+}
+
+export default [];
