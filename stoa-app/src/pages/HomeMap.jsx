@@ -6,12 +6,48 @@ import { occupancyLabels, occupancyColors, occupancyBgColors, occupancyTextColor
 import CheckIn from "./CheckIn";
 
 var GOOGLE_API_KEY = "AIzaSyDzcPX4NtY51Hl28Nly3NeqsxpTDiYoY48";
+var SEARCH_RADIUS = 1600;
 var filters = [
   { key: "all", label: "All" },
   { key: "low", label: "Available" },
   { key: "mid", label: "Moderate" },
   { key: "high", label: "Full" },
 ];
+
+var neighborhoods = [
+  { name: "Bay Ridge", lat: 40.6345, lng: -74.0214 },
+  { name: "Park Slope", lat: 40.6710, lng: -73.9814 },
+  { name: "Williamsburg", lat: 40.7081, lng: -73.9571 },
+  { name: "Bushwick", lat: 40.6944, lng: -73.9213 },
+  { name: "Gowanus", lat: 40.6733, lng: -73.9903 },
+  { name: "Red Hook", lat: 40.6734, lng: -74.0080 },
+  { name: "DUMBO", lat: 40.7033, lng: -73.9881 },
+  { name: "Cobble Hill", lat: 40.6860, lng: -73.9969 },
+  { name: "Carroll Gardens", lat: 40.6795, lng: -73.9991 },
+  { name: "Prospect Heights", lat: 40.6775, lng: -73.9692 },
+  { name: "Fort Greene", lat: 40.6892, lng: -73.9742 },
+  { name: "Clinton Hill", lat: 40.6896, lng: -73.9659 },
+  { name: "Bed-Stuy", lat: 40.6872, lng: -73.9418 },
+  { name: "Crown Heights", lat: 40.6694, lng: -73.9422 },
+  { name: "Greenpoint", lat: 40.7274, lng: -73.9514 },
+  { name: "Flatbush", lat: 40.6524, lng: -73.9590 },
+  { name: "Sunset Park", lat: 40.6464, lng: -74.0094 },
+  { name: "Downtown BK", lat: 40.6930, lng: -73.9867 },
+  { name: "Boerum Hill", lat: 40.6848, lng: -73.9846 },
+  { name: "East Village", lat: 40.7265, lng: -73.9815 },
+  { name: "West Village", lat: 40.7336, lng: -74.0027 },
+  { name: "SoHo", lat: 40.7233, lng: -73.9985 },
+  { name: "Chelsea", lat: 40.7465, lng: -74.0014 },
+  { name: "Lower East Side", lat: 40.7150, lng: -73.9843 },
+  { name: "Tribeca", lat: 40.7163, lng: -74.0086 },
+  { name: "Flatiron", lat: 40.7395, lng: -73.9903 },
+  { name: "Nolita", lat: 40.7234, lng: -73.9955 },
+  { name: "Chinatown", lat: 40.7158, lng: -73.9970 },
+  { name: "Financial District", lat: 40.7075, lng: -74.0089 },
+];
+
+var bkHoods = ["Bay Ridge","Park Slope","Williamsburg","Bushwick","Gowanus","Red Hook","DUMBO","Cobble Hill","Carroll Gardens","Prospect Heights","Fort Greene","Clinton Hill","Bed-Stuy","Crown Heights","Greenpoint","Flatbush","Sunset Park","Downtown BK","Boerum Hill"];
+var mhHoods = ["East Village","West Village","SoHo","Chelsea","Lower East Side","Tribeca","Flatiron","Nolita","Chinatown","Financial District"];
 
 function parsePlace(place, index) {
   var isOpen = place.currentOpeningHours ? place.currentOpeningHours.openNow : null;
@@ -22,7 +58,7 @@ function parsePlace(place, index) {
   var reviews = (place.reviews || []).slice(0, 5).map(function(r) {
     return { author: r.authorAttribution ? r.authorAttribution.displayName : "Anonymous", rating: r.rating || 0, text: r.text ? r.text.text : "", relativeTime: r.relativePublishTimeDescription || "" };
   });
-  return Object.assign({ id: index + 1, placeId: place.id, name: place.displayName ? place.displayName.text : "Coffee Shop", address: place.formattedAddress || "", neighborhood: neighborhood, lat: place.location ? place.location.latitude : 0, lng: place.location ? place.location.longitude : 0, rating: place.rating || null, isOpen: isOpen, photoRef: place.photos && place.photos.length > 0 ? place.photos[0].name : null, hours: hours, reviews: reviews, workspaceInfo: null }, occ);
+  return Object.assign({ id: place.id, placeId: place.id, name: place.displayName ? place.displayName.text : "Coffee Shop", address: place.formattedAddress || "", neighborhood: neighborhood, lat: place.location ? place.location.latitude : 0, lng: place.location ? place.location.longitude : 0, rating: place.rating || null, isOpen: isOpen, photoRef: place.photos && place.photos.length > 0 ? place.photos[0].name : null, hours: hours, reviews: reviews, workspaceInfo: null }, occ);
 }
 
 function sortShops(shops) {
@@ -119,7 +155,6 @@ function ShopListCard(props) {
   var isClosed = shop.occupancy === "closed";
   var badge = { background: occupancyBgColors[shop.occupancy], color: occupancyTextColors[shop.occupancy] };
   var photoUrl = getPhotoUrl(shop.photoRef, 400);
-
   return React.createElement("div", {className: "shop-list-card" + (isSelected ? " selected" : "") + (isClosed ? " dimmed" : ""), onClick: function() { onClick(shop); }},
     React.createElement("div", {className: "shop-list-photo"},
       photoUrl ? React.createElement("img", {src: photoUrl, alt: shop.name, onError: function(e){e.target.style.display="none"}}) : React.createElement("div", {className: "shop-list-photo-placeholder"}, "\u2615")
@@ -150,27 +185,31 @@ export default function HomeMap() {
   var [showSearchArea, setShowSearchArea] = useState(false);
   var [searchQuery, setSearchQuery] = useState("");
   var [searchOpen, setSearchOpen] = useState(false);
+  var [locationLabel, setLocationLabel] = useState("near you");
+  var [filteredHoods, setFilteredHoods] = useState(neighborhoods);
 
-  var fetchNearbyShops = useCallback(function(lat, lng) {
+  var apiHeaders = {"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews"};
+
+  var fetchNearbyShops = useCallback(function(lat, lng, label) {
     setLoading(true);
-    fetch("https://places.googleapis.com/v1/places:searchNearby", {
-      method: "POST", headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews" },
-      body: JSON.stringify({ includedTypes: ["coffee_shop", "cafe"], maxResultCount: 20, locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 5000.0 } } }),
-    }).then(function(r){return r.json()}).then(function(data) {
-      if (data.places && data.places.length > 0) {
-        var shops = sortShops(data.places.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
-        setAllShops(shops); setFilteredShops(shops); setActiveFilter("all");
-      } else { setAllShops([]); setFilteredShops([]); }
-      setLoading(false);
+    if (label) setLocationLabel(label);
+    var makeBody = function(types) { return JSON.stringify({ includedTypes: types, maxResultCount: 20, locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: SEARCH_RADIUS } } }); };
+    Promise.all([
+      fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["coffee_shop"]) }).then(function(r){return r.json()}),
+      fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["cafe"]) }).then(function(r){return r.json()})
+    ]).then(function(results) {
+      var allPlaces = []; var seenIds = {};
+      results.forEach(function(data) { if (data.places) { data.places.forEach(function(p) { if (!seenIds[p.id]) { seenIds[p.id] = true; allPlaces.push(p); } }); } });
+      var shops = sortShops(allPlaces.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
+      setAllShops(shops); setFilteredShops(shops); setActiveFilter("all"); setLoading(false);
     }).catch(function(){setLoading(false)});
   }, []);
 
   var searchPlaces = function(query) {
     if (!query.trim()) return;
-    setLoading(true); setSearchOpen(false);
-    fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST", headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews" },
-      body: JSON.stringify({ textQuery: query + " coffee shop", locationBias: { circle: { center: { latitude: 40.6782, longitude: -73.9442 }, radius: 15000.0 } }, maxResultCount: 20 }),
+    setLoading(true); setSearchOpen(false); setLocationLabel(query);
+    fetch("https://places.googleapis.com/v1/places:searchText", { method: "POST", headers: apiHeaders,
+      body: JSON.stringify({ textQuery: query + " coffee cafe", locationBias: { circle: { center: { latitude: 40.6782, longitude: -73.9442 }, radius: 15000.0 } }, maxResultCount: 20 }),
     }).then(function(r){return r.json()}).then(function(data) {
       if (data.places && data.places.length > 0) {
         var shops = sortShops(data.places.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
@@ -180,6 +219,9 @@ export default function HomeMap() {
       setLoading(false);
     }).catch(function(){setLoading(false)});
   };
+
+  var handleHoodClick = function(hood) { setSearchOpen(false); setSearchQuery(""); setLocationLabel(hood.name); if (mapInstanceRef.current) mapInstanceRef.current.flyTo([hood.lat, hood.lng], 15, {duration: 1}); fetchNearbyShops(hood.lat, hood.lng, hood.name); };
+  var handleSearchInput = function(e) { var val = e.target.value; setSearchQuery(val); if (val.trim()) { setFilteredHoods(neighborhoods.filter(function(h){return h.name.toLowerCase().includes(val.toLowerCase())})); } else { setFilteredHoods(neighborhoods); } };
 
   useEffect(function() {
     if (mapInstanceRef.current) return;
@@ -194,9 +236,9 @@ export default function HomeMap() {
         var ui=L.divIcon({className:"user-location-marker",html:'<div style="width:16px;height:16px;background:#2979FF;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(41,121,255,0.25),0 2px 8px rgba(0,0,0,0.2)"></div>',iconSize:[16,16],iconAnchor:[8,8]});
         if(userMarkerRef.current)map.removeLayer(userMarkerRef.current);
         userMarkerRef.current=L.marker([lat,lng],{icon:ui,zIndexOffset:1000}).addTo(map);
-        fetchNearbyShops(lat,lng);
-      },function(){fetchNearbyShops(40.6782,-73.9442)},{enableHighAccuracy:true,timeout:10000});
-    } else fetchNearbyShops(40.6782,-73.9442);
+        fetchNearbyShops(lat,lng,"near you");
+      },function(){fetchNearbyShops(40.6782,-73.9442,"Brooklyn")},{enableHighAccuracy:true,timeout:10000});
+    } else fetchNearbyShops(40.6782,-73.9442,"Brooklyn");
     return function(){map.remove();mapInstanceRef.current=null};
   }, [fetchNearbyShops]);
 
@@ -206,8 +248,8 @@ export default function HomeMap() {
     filteredShops.forEach(function(shop) {
       if(!shop.lat||!shop.lng)return;
       var cls=shop.occupancy==="closed"?"closed":shop.occupancy;
-      var sn=shop.name.length>12?shop.name.substring(0,12)+"\u2026":shop.name;
-      var ic=L.divIcon({className:"custom-marker",html:'<div class="marker-bubble '+cls+'">'+sn+'</div>',iconSize:[0,0],iconAnchor:[50,30]});
+      var sn=shop.name.length>14?shop.name.substring(0,14)+"\u2026":shop.name;
+      var ic=L.divIcon({className:"custom-marker",html:'<div class="marker-bubble '+cls+'">'+sn+'</div>',iconSize:[0,0],iconAnchor:[60,30]});
       var mk=L.marker([shop.lat,shop.lng],{icon:ic}).addTo(map);
       mk.on("click",function(){setSelectedShop(shop);map.flyTo([shop.lat,shop.lng],16,{duration:0.5})});
       markersRef.current.push(mk);
@@ -216,8 +258,8 @@ export default function HomeMap() {
 
   var handleFilter=function(key){setActiveFilter(key);setFilteredShops(key==="all"?allShops:allShops.filter(function(s){return s.occupancy===key}))};
   var handleShopClick=function(shop){setSelectedShop(shop);if(mapInstanceRef.current)mapInstanceRef.current.flyTo([shop.lat,shop.lng],16,{duration:0.5})};
-  var handleSearchArea=function(){var map=mapInstanceRef.current;if(!map)return;var c=map.getCenter();fetchNearbyShops(c.lat,c.lng);setShowSearchArea(false)};
-  var locateUser=function(){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(pos){var map=mapInstanceRef.current;if(map){var lat=pos.coords.latitude,lng=pos.coords.longitude;map.flyTo([lat,lng],15,{duration:0.8});var ui=L.divIcon({className:"user-location-marker",html:'<div style="width:16px;height:16px;background:#2979FF;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(41,121,255,0.25),0 2px 8px rgba(0,0,0,0.2)"></div>',iconSize:[16,16],iconAnchor:[8,8]});if(userMarkerRef.current)map.removeLayer(userMarkerRef.current);userMarkerRef.current=L.marker([lat,lng],{icon:ui,zIndexOffset:1000}).addTo(map);fetchNearbyShops(lat,lng);setShowSearchArea(false)}})};
+  var handleSearchArea=function(){var map=mapInstanceRef.current;if(!map)return;var c=map.getCenter();fetchNearbyShops(c.lat,c.lng,"this area");setShowSearchArea(false)};
+  var locateUser=function(){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(pos){var map=mapInstanceRef.current;if(map){var lat=pos.coords.latitude,lng=pos.coords.longitude;map.flyTo([lat,lng],15,{duration:0.8});var ui=L.divIcon({className:"user-location-marker",html:'<div style="width:16px;height:16px;background:#2979FF;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(41,121,255,0.25),0 2px 8px rgba(0,0,0,0.2)"></div>',iconSize:[16,16],iconAnchor:[8,8]});if(userMarkerRef.current)map.removeLayer(userMarkerRef.current);userMarkerRef.current=L.marker([lat,lng],{icon:ui,zIndexOffset:1000}).addTo(map);fetchNearbyShops(lat,lng,"near you");setShowSearchArea(false)}})};
   var handleSearchSubmit=function(e){e.preventDefault();if(searchQuery.trim()){searchPlaces(searchQuery.trim());setSearchQuery("")}};
 
   return React.createElement("div", {className: "app-layout"},
@@ -229,21 +271,42 @@ export default function HomeMap() {
           React.createElement("button", {className: "icon-btn"}, "\uD83D\uDC64")
         )
       ),
-      searchOpen ? React.createElement("div", {className: "search-row"},
-        React.createElement("input", {type: "text", className: "search-input", placeholder: "Try 'Williamsburg' or 'Blue Bottle'...", value: searchQuery, onChange: function(e){setSearchQuery(e.target.value)}, autoFocus: true, onKeyDown: function(e){if(e.key==="Enter")handleSearchSubmit(e);if(e.key==="Escape")setSearchOpen(false)}}),
-        React.createElement("button", {className: "search-go-btn", onClick: handleSearchSubmit}, "Go"),
-        React.createElement("button", {className: "search-cancel-btn", onClick: function(){setSearchOpen(false)}}, "\u2715")
-      ) : React.createElement("div", {className: "search-bar", onClick: function(){setSearchOpen(true)}},
-        React.createElement("svg", {width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2"}, React.createElement("circle", {cx: "11", cy: "11", r: "8"}), React.createElement("path", {d: "m21 21-4.35-4.35"})),
-        loading ? "Finding coffee shops..." : "Search cafes, neighborhoods..."
+      React.createElement("div", {className: "search-container"},
+        searchOpen ? React.createElement("div", null,
+          React.createElement("div", {className: "search-row"},
+            React.createElement("input", {type: "text", className: "search-input", placeholder: "Search or pick a neighborhood...", value: searchQuery, onChange: handleSearchInput, autoFocus: true, onKeyDown: function(e){if(e.key==="Enter")handleSearchSubmit(e);if(e.key==="Escape"){setSearchOpen(false);setSearchQuery("")}}}),
+            React.createElement("button", {className: "search-go-btn", onClick: handleSearchSubmit}, "Go"),
+            React.createElement("button", {className: "search-cancel-btn", onClick: function(){setSearchOpen(false);setSearchQuery("")}}, "\u2715")
+          ),
+          React.createElement("div", {className: "neighborhood-dropdown"},
+            React.createElement("div", {className: "neighborhood-section-label"}, "BROOKLYN"),
+            React.createElement("div", {className: "neighborhood-grid"},
+              filteredHoods.filter(function(h){return bkHoods.indexOf(h.name) !== -1}).map(function(hood) {
+                return React.createElement("div", {key: hood.name, className: "neighborhood-chip", onClick: function(){handleHoodClick(hood)}}, hood.name);
+              })
+            ),
+            React.createElement("div", {className: "neighborhood-section-label", style: {marginTop: "12px"}}, "MANHATTAN (below 23rd)"),
+            React.createElement("div", {className: "neighborhood-grid"},
+              filteredHoods.filter(function(h){return mhHoods.indexOf(h.name) !== -1}).map(function(hood) {
+                return React.createElement("div", {key: hood.name, className: "neighborhood-chip manhattan", onClick: function(){handleHoodClick(hood)}}, hood.name);
+              })
+            )
+          )
+        ) : React.createElement("div", {className: "search-bar", onClick: function(){setSearchOpen(true);setFilteredHoods(neighborhoods)}},
+          React.createElement("svg", {width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2"}, React.createElement("circle", {cx: "11", cy: "11", r: "8"}), React.createElement("path", {d: "m21 21-4.35-4.35"})),
+          "Search cafes, neighborhoods..."
+        )
       ),
       React.createElement("div", {className: "filter-row"}, filters.map(function(f) {
         return React.createElement("div", {key: f.key, className: "filter-chip" + (activeFilter===f.key?" active":""), onClick: function(){handleFilter(f.key)}}, f.label);
       })),
+      React.createElement("div", {className: "location-label"},
+        loading ? "Finding coffee shops..." : allShops.length + " spots within 1 mile \u00B7 " + locationLabel
+      ),
       React.createElement("div", {className: "left-panel-content"},
         selectedShop ? React.createElement(SideDetail, {shop: selectedShop, onClose: function(){setSelectedShop(null)}, onCheckin: function(){setCheckinOpen(true)}}) : React.createElement("div", {className: "shop-list"},
           filteredShops.map(function(shop){return React.createElement(ShopListCard, {key: shop.id, shop: shop, onClick: handleShopClick, isSelected: false})}),
-          !loading && filteredShops.length === 0 ? React.createElement("div", {className: "empty-state"}, "No coffee shops found. Try searching or moving the map.") : null
+          !loading && filteredShops.length === 0 ? React.createElement("div", {className: "empty-state"}, "No coffee shops found. Try a different neighborhood or search.") : null
         )
       )
     ),
