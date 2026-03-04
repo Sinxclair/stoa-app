@@ -27,38 +27,52 @@ export const occupancyTextColors = {
 };
 
 export const EXCLUDED_NAMES = [
+  /* fast food + chains */
   "mcdonald", "burger king", "wendy", "subway", "dunkin", "taco bell",
   "chick-fil-a", "popeyes", "kfc", "five guys", "chipotle", "panera",
   "shake shack", "wingstop", "domino", "pizza hut", "papa john",
+  "ihop", "denny", "waffle house", "cracker barrel",
+  "tim hortons", "krispy kreme", "le pain quotidien", "pret a manger",
+  /* juice + smoothie */
   "smoothie", "jamba", "juice press", "juice bar", "juicery",
-  "robeks", "nekter", "pressed juicery",
+  "robeks", "nekter", "pressed juicery", "acai",
+  /* convenience + grocery */
   "7-eleven", "wawa", "sheetz", "circle k", "gas station",
-  "deli", "bodega", "grocery", "supermarket", "pharmacy", "cvs", "walgreens",
+  "bodega", "grocery", "supermarket", "pharmacy", "cvs", "walgreens",
+  /* bubble tea + tea */
   "kung fu tea", "gong cha", "tiger sugar", "coco tea", "happy lemon",
   "kung-fu tea", "boba guys", "vivi bubble tea", "tea and milk",
   "tbaar", "bubble tea", "boba", "tea house", "tea room",
+  /* ice cream + frozen */
   "baskin", "carvel", "cold stone", "dairy queen", "rita's ice",
-  "ice cream", "frozen yogurt", "froyo",
+  "ice cream", "frozen yogurt", "froyo", "gelato", "sorbet",
+  /* specific non-coffee spots that show up in NYC */
   "joe & the juice", "joes pizza", "joe's pizza",
-  "ihop", "denny", "waffle house", "cracker barrel",
-  "tim hortons", "krispy kreme",
-  "pizz", "bagel", "donut", "doughnut",
-  "max brenner", "eataly", "angelika", "spot dessert", "buvette",
-  "film center", "movie", "cinema", "theater", "theatre",
-  "dessert bar", "chocolate bar",
-  "le pain quotidien", "pret a manger",
-  "food hall", "food court",
-  "tavern", "grill", "bistro", "brasserie", "trattoria",
-  "sushi", "ramen", "noodle", "pho",
+  "max brenner", "eataly", "angelika", "buvette",
+  "spot dessert", "book club bar",
+  /* restaurants + dining keywords */
+  "bistro", "brasserie", "trattoria", "tavern", "osteria",
+  "steakhouse", "steak house", "chophouse",
+  "sushi", "ramen", "noodle", "pho", "dim sum", "wok",
   "taqueria", "burrito", "enchilada",
   "wings", "fried chicken", "bbq", "barbecue",
-  "steakhouse", "steak house",
-  "wine bar", "cocktail", "brewery", "taproom",
-  "fromagerie", "charcuterie",
-  "creperie", "crepe",
-  "gelato", "sorbet",
-  "acai",
+  /* bars + nightlife */
+  "wine bar", "cocktail bar", "speakeasy", "taproom", "brewery", "pub ",
+  /* bakery + pastry (not coffee-first) */
   "paris baguette", "tous les jours",
+  "patisserie", "pasticceria",
+  /* dessert */
+  "dessert bar", "chocolate bar", "chocolate shop",
+  "candy", "confection", "fudge",
+  "creperie", "crepe house",
+  /* entertainment */
+  "film center", "movie", "cinema", "theater", "theatre",
+  "comedy club", "escape room", "bowling",
+  /* food keywords */
+  "food hall", "food court",
+  "pizz", "bagel", "donut", "doughnut",
+  /* deli - but careful not to catch "delicioso" etc */
+  "deli ", " deli",
 ];
 
 export function isRealCoffeeShop(name) {
