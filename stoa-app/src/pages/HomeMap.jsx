@@ -14,47 +14,53 @@ var filters = [
   { key: "high", label: "Full" },
 ];
 
-/* --- Types that should NEVER appear --- */
-var REJECTED_TYPES = [
-  "movie_theater", "bar", "night_club", "restaurant", "american_restaurant",
-  "italian_restaurant", "mexican_restaurant", "chinese_restaurant", "japanese_restaurant",
-  "korean_restaurant", "thai_restaurant", "indian_restaurant", "french_restaurant",
-  "greek_restaurant", "turkish_restaurant", "lebanese_restaurant", "vietnamese_restaurant",
-  "spanish_restaurant", "seafood_restaurant", "brazilian_restaurant", "barbecue_restaurant",
+/* --- Primary types we WANT (coffee/work spots) --- */
+var ALLOWED_PRIMARY = [
+  "coffee_shop", "cafe", "internet_cafe", "book_store", "coworking_space",
+];
+
+/* --- Primary types that are NEVER a coffee work spot --- */
+var REJECTED_PRIMARY = [
+  "movie_theater", "bar", "night_club", "pub", "wine_bar", "bar_and_grill",
+  "restaurant", "american_restaurant", "italian_restaurant", "mexican_restaurant",
+  "chinese_restaurant", "japanese_restaurant", "korean_restaurant", "thai_restaurant",
+  "indian_restaurant", "french_restaurant", "greek_restaurant", "turkish_restaurant",
+  "lebanese_restaurant", "vietnamese_restaurant", "spanish_restaurant",
+  "seafood_restaurant", "brazilian_restaurant", "barbecue_restaurant",
   "fast_food_restaurant", "hamburger_restaurant", "pizza_restaurant", "steak_house",
-  "sushi_restaurant", "ramen_restaurant", "mediterranean_restaurant", "middle_eastern_restaurant",
-  "breakfast_restaurant", "brunch_restaurant", "fine_dining_restaurant", "buffet_restaurant",
+  "sushi_restaurant", "ramen_restaurant", "mediterranean_restaurant",
+  "middle_eastern_restaurant", "breakfast_restaurant", "brunch_restaurant",
+  "fine_dining_restaurant", "buffet_restaurant", "diner",
   "afghani_restaurant", "african_restaurant", "asian_restaurant",
-  "bar_and_grill", "wine_bar", "pub",
-  "ice_cream_shop", "dessert_shop", "dessert_restaurant",
+  "ice_cream_shop", "dessert_shop", "dessert_restaurant", "candy_store",
+  "chocolate_shop", "chocolate_factory", "confectionery",
+  "bakery", "bagel_shop", "donut_shop",
   "gym", "fitness_center", "spa", "hair_salon", "beauty_salon",
   "clothing_store", "department_store", "shopping_mall",
   "hotel", "lodging", "hospital", "dentist", "doctor",
-  "movie_rental", "casino", "amusement_park",
+  "movie_rental", "casino", "amusement_park", "amusement_center",
   "gas_station", "car_wash", "car_repair", "parking",
-  "grocery_store", "supermarket", "convenience_store",
+  "grocery_store", "supermarket", "convenience_store", "market",
   "liquor_store", "drugstore", "pharmacy",
-  "church", "mosque", "synagogue",
-  "school", "university", "library",
-  "bank", "atm", "post_office",
-  "real_estate_agency", "insurance_agency", "lawyer",
+  "meal_delivery", "meal_takeaway", "food_court",
+  "event_venue", "banquet_hall", "wedding_venue",
+  "acai_shop", "juice_shop", "tea_house",
 ];
 
-/* --- Types that CONFIRM it's a good place --- */
-var GOOD_TYPES = [
-  "coffee_shop", "cafe", "internet_cafe", "book_store",
-];
-
-function isGoodPlaceByType(types) {
-  if (!types || types.length === 0) return true; /* no type info = let name filter handle it */
-  /* reject if primary type is a rejected type */
-  var hasRejected = types.some(function(t) { return REJECTED_TYPES.indexOf(t) !== -1; });
-  var hasGood = types.some(function(t) { return GOOD_TYPES.indexOf(t) !== -1; });
-  /* if it has a good type, keep it even if it also has a rejected type (e.g. cafe + restaurant) */
-  if (hasGood) return true;
-  /* if it only has rejected types and no good types, reject */
-  if (hasRejected) return false;
-  return true;
+function isGoodPlaceByType(primaryType, types) {
+  /* If we have a primaryType, that's the most reliable signal */
+  if (primaryType) {
+    if (ALLOWED_PRIMARY.indexOf(primaryType) !== -1) return true;
+    if (REJECTED_PRIMARY.indexOf(primaryType) !== -1) return false;
+  }
+  /* Fallback: check if any type is in our allowed list */
+  if (types && types.length > 0) {
+    var hasAllowed = types.some(function(t) { return ALLOWED_PRIMARY.indexOf(t) !== -1; });
+    if (hasAllowed) return true;
+    var hasRejected = types.some(function(t) { return REJECTED_PRIMARY.indexOf(t) !== -1; });
+    if (hasRejected) return false;
+  }
+  return true; /* no type info = let name filter handle it */
 }
 
 var neighborhoods = [
@@ -248,7 +254,8 @@ export default function HomeMap() {
           .filter(function(p) {
             var name = p.displayName ? p.displayName.text : "";
             var types = p.types || [];
-            return isRealCoffeeShop(name) && isGoodPlaceByType(types);
+            var pt = p.primaryType || "";
+            return isRealCoffeeShop(name) && isGoodPlaceByType(pt, types);
           })
           .map(function(p, i) { return parsePlace(p, i); })
       );
@@ -268,7 +275,8 @@ export default function HomeMap() {
             .filter(function(p) {
               var name = p.displayName ? p.displayName.text : "";
               var types = p.types || [];
-              return isRealCoffeeShop(name) && isGoodPlaceByType(types);
+              var pt = p.primaryType || "";
+              return isRealCoffeeShop(name) && isGoodPlaceByType(pt, types);
             })
             .map(function(p, i) { return parsePlace(p, i); })
         );
