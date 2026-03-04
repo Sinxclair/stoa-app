@@ -14,55 +14,6 @@ var filters = [
   { key: "high", label: "Full" },
 ];
 
-/* --- Primary types we WANT (coffee/work spots) --- */
-var ALLOWED_PRIMARY = [
-  "coffee_shop", "cafe", "internet_cafe", "book_store", "coworking_space",
-];
-
-/* --- Primary types that are NEVER a coffee work spot --- */
-var REJECTED_PRIMARY = [
-  "movie_theater", "bar", "night_club", "pub", "wine_bar", "bar_and_grill",
-  "restaurant", "american_restaurant", "italian_restaurant", "mexican_restaurant",
-  "chinese_restaurant", "japanese_restaurant", "korean_restaurant", "thai_restaurant",
-  "indian_restaurant", "french_restaurant", "greek_restaurant", "turkish_restaurant",
-  "lebanese_restaurant", "vietnamese_restaurant", "spanish_restaurant",
-  "seafood_restaurant", "brazilian_restaurant", "barbecue_restaurant",
-  "fast_food_restaurant", "hamburger_restaurant", "pizza_restaurant", "steak_house",
-  "sushi_restaurant", "ramen_restaurant", "mediterranean_restaurant",
-  "middle_eastern_restaurant", "breakfast_restaurant", "brunch_restaurant",
-  "fine_dining_restaurant", "buffet_restaurant", "diner",
-  "afghani_restaurant", "african_restaurant", "asian_restaurant",
-  "ice_cream_shop", "dessert_shop", "dessert_restaurant", "candy_store",
-  "chocolate_shop", "chocolate_factory", "confectionery",
-  "bakery", "bagel_shop", "donut_shop",
-  "gym", "fitness_center", "spa", "hair_salon", "beauty_salon",
-  "clothing_store", "department_store", "shopping_mall",
-  "hotel", "lodging", "hospital", "dentist", "doctor",
-  "movie_rental", "casino", "amusement_park", "amusement_center",
-  "gas_station", "car_wash", "car_repair", "parking",
-  "grocery_store", "supermarket", "convenience_store", "market",
-  "liquor_store", "drugstore", "pharmacy",
-  "meal_delivery", "meal_takeaway", "food_court",
-  "event_venue", "banquet_hall", "wedding_venue",
-  "acai_shop", "juice_shop", "tea_house",
-];
-
-function isGoodPlaceByType(primaryType, types) {
-  /* If we have a primaryType, that's the most reliable signal */
-  if (primaryType) {
-    if (ALLOWED_PRIMARY.indexOf(primaryType) !== -1) return true;
-    if (REJECTED_PRIMARY.indexOf(primaryType) !== -1) return false;
-  }
-  /* Fallback: check if any type is in our allowed list */
-  if (types && types.length > 0) {
-    var hasAllowed = types.some(function(t) { return ALLOWED_PRIMARY.indexOf(t) !== -1; });
-    if (hasAllowed) return true;
-    var hasRejected = types.some(function(t) { return REJECTED_PRIMARY.indexOf(t) !== -1; });
-    if (hasRejected) return false;
-  }
-  return true; /* no type info = let name filter handle it */
-}
-
 var neighborhoods = [
   { name: "Bay Ridge", lat: 40.6345, lng: -74.0214 },
   { name: "Park Slope", lat: 40.6710, lng: -73.9814 },
@@ -107,7 +58,7 @@ function parsePlace(place, index) {
   var reviews = (place.reviews || []).slice(0, 5).map(function(r) {
     return { author: r.authorAttribution ? r.authorAttribution.displayName : "Anonymous", rating: r.rating || 0, text: r.text ? r.text.text : "", relativeTime: r.relativePublishTimeDescription || "" };
   });
-  return Object.assign({ id: place.id, placeId: place.id, name: place.displayName ? place.displayName.text : "Coffee Shop", address: place.formattedAddress || "", neighborhood: neighborhood, lat: place.location ? place.location.latitude : 0, lng: place.location ? place.location.longitude : 0, rating: place.rating || null, isOpen: isOpen, photoRef: place.photos && place.photos.length > 0 ? place.photos[0].name : null, hours: hours, reviews: reviews, workspaceInfo: null, types: place.types || [] }, occ);
+  return Object.assign({ id: place.id, placeId: place.id, name: place.displayName ? place.displayName.text : "Coffee Shop", address: place.formattedAddress || "", neighborhood: neighborhood, lat: place.location ? place.location.latitude : 0, lng: place.location ? place.location.longitude : 0, rating: place.rating || null, isOpen: isOpen, photoRef: place.photos && place.photos.length > 0 ? place.photos[0].name : null, hours: hours, reviews: reviews, workspaceInfo: null }, occ);
 }
 
 function sortShops(shops) {
@@ -237,7 +188,7 @@ export default function HomeMap() {
   var [locationLabel, setLocationLabel] = useState("near you");
   var [filteredHoods, setFilteredHoods] = useState(neighborhoods);
 
-  var apiHeaders = {"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews,places.types,places.primaryType"};
+  var apiHeaders = {"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.rating,places.id,places.photos,places.currentOpeningHours,places.regularOpeningHours,places.reviews"};
 
   var fetchNearbyShops = useCallback(function(lat, lng, label) {
     setLoading(true);
@@ -249,16 +200,7 @@ export default function HomeMap() {
     ]).then(function(results) {
       var allPlaces = []; var seenIds = {};
       results.forEach(function(data) { if (data.places) { data.places.forEach(function(p) { if (!seenIds[p.id]) { seenIds[p.id] = true; allPlaces.push(p); } }); } });
-      var shops = sortShops(
-        allPlaces
-          .filter(function(p) {
-            var name = p.displayName ? p.displayName.text : "";
-            var types = p.types || [];
-            var pt = p.primaryType || "";
-            return isRealCoffeeShop(name) && isGoodPlaceByType(pt, types);
-          })
-          .map(function(p, i) { return parsePlace(p, i); })
-      );
+      var shops = sortShops(allPlaces.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
       setAllShops(shops); setFilteredShops(shops); setActiveFilter("all"); setLoading(false);
     }).catch(function(){setLoading(false)});
   }, []);
@@ -270,16 +212,7 @@ export default function HomeMap() {
       body: JSON.stringify({ textQuery: query + " coffee cafe", locationBias: { circle: { center: { latitude: 40.6782, longitude: -73.9442 }, radius: 15000.0 } }, maxResultCount: 20 }),
     }).then(function(r){return r.json()}).then(function(data) {
       if (data.places && data.places.length > 0) {
-        var shops = sortShops(
-          data.places
-            .filter(function(p) {
-              var name = p.displayName ? p.displayName.text : "";
-              var types = p.types || [];
-              var pt = p.primaryType || "";
-              return isRealCoffeeShop(name) && isGoodPlaceByType(pt, types);
-            })
-            .map(function(p, i) { return parsePlace(p, i); })
-        );
+        var shops = sortShops(data.places.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
         setAllShops(shops); setFilteredShops(shops); setActiveFilter("all");
         if (shops.length > 0 && mapInstanceRef.current) mapInstanceRef.current.fitBounds(L.latLngBounds(shops.map(function(s){return [s.lat,s.lng]})),{padding:[50,50]});
       } else { setAllShops([]); setFilteredShops([]); }
