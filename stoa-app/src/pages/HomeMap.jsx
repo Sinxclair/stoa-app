@@ -195,15 +195,10 @@ export default function HomeMap() {
     if (label) setLocationLabel(label);
     var makeBody = function(types) { return JSON.stringify({ includedTypes: types, maxResultCount: 20, locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: SEARCH_RADIUS } } }); };
     Promise.all([
-      fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["coffee_shop"]) }).then(function(r){return r.json()}),
-      fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["cafe"]) }).then(function(r){return r.json()})
-    ]).then(function(results) {
-      var allPlaces = []; var seenIds = {};
-      results.forEach(function(data) { if (data.places) { data.places.forEach(function(p) { if (!seenIds[p.id]) { seenIds[p.id] = true; allPlaces.push(p); } }); } });
-      var shops = sortShops(allPlaces.filter(function(p){return isRealCoffeeShop(p.displayName?p.displayName.text:"")}).map(function(p,i){return parsePlace(p,i)}));
-      setAllShops(shops); setFilteredShops(shops); setActiveFilter("all"); setLoading(false);
-    }).catch(function(){setLoading(false)});
-  }, []);
+  fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["coffee_shop"]) }).then(function(r){return r.json()}),
+  fetch("https://places.googleapis.com/v1/places:searchNearby", { method: "POST", headers: apiHeaders, body: makeBody(["cafe"]) }).then(function(r){return r.json()}),
+  fetch("https://places.googleapis.com/v1/places:searchText", { method: "POST", headers: apiHeaders, body: JSON.stringify({ textQuery: "coffee", locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: SEARCH_RADIUS } }, maxResultCount: 20 }) }).then(function(r){return r.json()})
+])
 
   var searchPlaces = function(query) {
     if (!query.trim()) return;
